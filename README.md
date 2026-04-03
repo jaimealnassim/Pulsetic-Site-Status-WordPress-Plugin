@@ -36,11 +36,20 @@
 
 ## Configuration
 
-### 1 · API Token
+### 1 · API Token &amp; Scan Interval
 
-Go to **Settings → Pulsetic Status → ① API Token**.
+Go to **Settings → Pulsetic Status → ① API Token &amp; Scan Interval**.
 
-Paste your token from [app.pulsetic.com/account/api](https://app.pulsetic.com/account/api) and save.
+Paste your token from [app.pulsetic.com/account/api](https://app.pulsetic.com/account/api) and choose how often the plugin should re-check the Pulsetic API:
+
+| Interval | Best for |
+|---|---|
+| 1 minute | High-priority monitors where you need near-realtime status |
+| 2 – 5 minutes | Most sites — good balance of freshness vs. API calls |
+| 10 – 30 minutes | Low-traffic or informational status pages |
+| 1 hour | Sites checked rarely; minimises API quota usage |
+
+> **Note:** The interval controls the server-side cache TTL. The frontend AJAX polling (`refresh_interval` shortcode attribute) is separate — it re-reads the cached data, not the live API.
 
 ### 2 · Monitor Groups
 
@@ -241,7 +250,7 @@ Pulsetic_API::get_monitors()
 
 When you delete the plugin via **Plugins → Delete**, `uninstall.php` automatically removes:
 
-- All plugin options (`pulsetic_api_token`, `pulsetic_colors`, `pulsetic_groups`, `pulsetic_sizes`)
+- All plugin options (`pulsetic_api_token`, `pulsetic_colors`, `pulsetic_groups`, `pulsetic_sizes`, `pulsetic_scan_interval`)
 - The monitor cache transient (`pulsetic_monitors_cache`)
 - Any scheduled WP-Cron background refresh events
 
@@ -267,6 +276,14 @@ Deactivating the plugin (without deleting) leaves all data intact so you can rea
 ---
 
 ## Changelog
+
+### 1.1.2 — Configurable scan interval
+- New **Scan Interval** setting in the Token card — choose from 1 min, 2 min, 5 min, 10 min, 15 min, 30 min, or 1 hour
+- Interval validated against a strict allowlist server-side (no arbitrary TTL injection)
+- Changing the interval immediately busts the existing cache so the new TTL applies on the next fetch
+- Stale-while-revalidate window scales with TTL (10%, clamped 30 s – 120 s) instead of being hardcoded at 60 s
+- "Next refresh in X" live countdown shown next to the selector
+- `pulsetic_scan_interval` option cleaned up by `uninstall.php`
 
 ### 1.1.1 — Code quality & security audit
 - `wp_safe_redirect()` replaces `wp_redirect()`
