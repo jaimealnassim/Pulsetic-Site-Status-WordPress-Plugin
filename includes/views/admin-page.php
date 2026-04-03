@@ -21,14 +21,37 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 
         <!-- ① Token -->
         <div class="pc">
-            <div class="pch2">① API Token</div>
+            <div class="pch2">① API Token &amp; Scan Interval</div>
             <div class="pf">
-                <label for="pat">Token</label>
+                <label for="pat">API Token</label>
                 <input type="password" id="pat" name="pulsetic_api_token"
                     value="<?php echo esc_attr( $token ); ?>"
                     placeholder="Paste your Pulsetic API token…"
                     autocomplete="off"/>
                 <p class="hint">Get yours at <a href="https://app.pulsetic.com/account/api" target="_blank">app.pulsetic.com/account/api</a>.</p>
+            </div>
+            <div class="pf">
+                <label for="psi">How often to check site status</label>
+                <div class="si-wrap">
+                    <select id="psi" name="pulsetic_scan_interval" class="si-select">
+                        <?php foreach ( $interval_options as $seconds => $label ) : ?>
+                        <option value="<?php echo (int) $seconds; ?>" <?php selected( $scan_interval, $seconds ); ?>>
+                            <?php echo esc_html( $label ); ?>
+                        </option>
+                        <?php endforeach; ?>
+                    </select>
+                    <span class="si-hint">
+                        <?php
+                        $next_refresh = get_option( '_transient_timeout_' . 'pulsetic_monitors_cache', 0 );
+                        if ( $next_refresh > time() ) {
+                            echo 'Next refresh in <strong>' . esc_html( human_time_diff( time(), $next_refresh ) ) . '</strong>';
+                        } else {
+                            echo 'Cache will refresh on next page load';
+                        }
+                        ?>
+                    </span>
+                </div>
+                <p class="hint">How long monitor statuses are cached before the plugin re-checks the Pulsetic API. Shorter = more current data, more API calls. Longer = fewer API calls, slightly staler data.</p>
             </div>
             <?php if ( ! empty( $token ) && is_wp_error( $monitors ) ) : ?>
             <div class="dbg-box"><strong>API error:</strong> <?php echo esc_html( $monitors->get_error_message() ); ?></div>

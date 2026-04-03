@@ -55,7 +55,43 @@ function pulsetic_get_sizes(): array {
 	return wp_parse_args( pulsetic_get_option( 'pulsetic_sizes', [] ), pulsetic_default_sizes() );
 }
 
-// ── Groups ─────────────────────────────────────────────────────────────────────
+// ── Scan interval ──────────────────────────────────────────────────────────────
+
+/**
+ * Allowed scan interval options in seconds → display label.
+ * Keeping a strict allowlist means we never cache for an arbitrary duration.
+ *
+ * @return array<int,string>
+ */
+function pulsetic_scan_interval_options(): array {
+	return [
+		60    => '1 minute',
+		120   => '2 minutes',
+		300   => '5 minutes',
+		600   => '10 minutes',
+		900   => '15 minutes',
+		1800  => '30 minutes',
+		3600  => '1 hour',
+	];
+}
+
+/**
+ * Return the active scan interval in seconds.
+ * Falls back to 5 minutes if the stored value is not in the allowlist.
+ */
+function pulsetic_get_cache_ttl(): int {
+	$stored  = (int) pulsetic_get_option( 'pulsetic_scan_interval', 300 );
+	$allowed = array_keys( pulsetic_scan_interval_options() );
+	return in_array( $stored, $allowed, true ) ? $stored : 300;
+}
+
+/**
+ * Stale-while-revalidate window: 10% of the TTL, clamped between 30 s and 120 s.
+ * This is how far before expiry we schedule the background WP-Cron refresh.
+ */
+function pulsetic_stale_window(): int {
+	return (int) min( 120, max( 30, pulsetic_get_cache_ttl() * 0.1 ) );
+}
 
 function pulsetic_get_groups(): array {
 	$g = pulsetic_get_option( PULSETIC_OPT_GROUPS, [] );

@@ -88,6 +88,20 @@ class Pulsetic_Admin {
 			delete_transient( PULSETIC_CACHE_KEY );
 		}
 
+		// Scan interval — validate against strict allowlist
+		$allowed_intervals = array_keys( pulsetic_scan_interval_options() );
+		$new_interval      = (int) ( $_POST['pulsetic_scan_interval'] ?? 300 );
+		if ( ! in_array( $new_interval, $allowed_intervals, true ) ) {
+			$new_interval = 300; // safe default: 5 minutes
+		}
+		$old_interval = (int) pulsetic_get_option( 'pulsetic_scan_interval', 300 );
+		update_option( 'pulsetic_scan_interval', $new_interval );
+		pulsetic_flush_option_cache( 'pulsetic_scan_interval' );
+		// Bust the cache so the new TTL applies on the next request
+		if ( $new_interval !== $old_interval ) {
+			delete_transient( PULSETIC_CACHE_KEY );
+		}
+
 		// Colors
 		$color_defaults = pulsetic_default_colors();
 		$colors         = [];
@@ -173,15 +187,16 @@ class Pulsetic_Admin {
 			wp_die( esc_html__( 'You do not have permission to access this page.', 'pulsetic-site-status' ) );
 		}
 
-		$token         = get_option( PULSETIC_OPT_TOKEN, '' );
-		$colors        = pulsetic_get_colors();
-		$defaults      = pulsetic_default_colors();
-		$sizes         = pulsetic_get_sizes();
-		$size_defaults = pulsetic_default_sizes();
-		$groups        = pulsetic_get_groups();
-		$monitors      = ! empty( $token ) ? Pulsetic_API::get_monitors() : null;
-		// Sanitize the ?updated param — only truthy presence matters, not its value
-		$updated       = isset( $_GET['updated'] ) && current_user_can( 'manage_options' );
+		$token            = get_option( PULSETIC_OPT_TOKEN, '' );
+		$colors           = pulsetic_get_colors();
+		$defaults         = pulsetic_default_colors();
+		$sizes            = pulsetic_get_sizes();
+		$size_defaults    = pulsetic_default_sizes();
+		$groups           = pulsetic_get_groups();
+		$scan_interval    = pulsetic_get_cache_ttl();
+		$interval_options = pulsetic_scan_interval_options();
+		$monitors         = ! empty( $token ) ? Pulsetic_API::get_monitors() : null;
+		$updated          = isset( $_GET['updated'] ) && current_user_can( 'manage_options' );
 
 		$mon_js = [];
 		if ( $monitors && ! is_wp_error( $monitors ) ) {

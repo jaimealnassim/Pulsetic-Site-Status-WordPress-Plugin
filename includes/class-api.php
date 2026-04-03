@@ -7,12 +7,10 @@ if ( ! defined( 'ABSPATH' ) ) exit;
  * Handles all communication with the Pulsetic REST API.
  *
  * Caching strategy:
- *  - Results are stored in a transient for PULSETIC_CACHE_TTL (5 min).
- *  - A static in-memory cache prevents duplicate API calls within a single
- *    page request (e.g. multiple shortcodes on the same page).
- *  - A "stale-while-revalidate" flag (pulsetic_cache_stale) is set 60 s
- *    before the transient expires so the next WP cron tick can refresh it
- *    in the background without blocking a visitor.
+ *  - Results stored in a transient for pulsetic_get_cache_ttl() seconds (admin-configurable).
+ *  - A static in-memory cache prevents duplicate API calls within a single page request.
+ *  - Stale-while-revalidate: within pulsetic_stale_window() seconds of expiry, a WP-Cron
+ *    single event refreshes the cache in the background so visitors never block on a live fetch.
  */
 class Pulsetic_API {
 
@@ -31,9 +29,9 @@ class Pulsetic_API {
 		if ( $cached !== false ) {
 			self::$runtime_cache = $cached;
 
-			// Schedule background refresh if we're within the stale window (60 s before expiry)
+			// Schedule background refresh if within the stale window before expiry
 			$timeout = get_option( '_transient_timeout_' . PULSETIC_CACHE_KEY, 0 );
-			if ( $timeout && ( $timeout - time() ) < 60 ) {
+			if ( $timeout && ( $timeout - time() ) < pulsetic_stale_window() ) {
 				self::schedule_background_refresh();
 			}
 
@@ -78,7 +76,7 @@ class Pulsetic_API {
 		$monitors = self::extract_monitors( $data, $body );
 		if ( is_wp_error( $monitors ) ) return $monitors;
 
-		set_transient( PULSETIC_CACHE_KEY, $monitors, PULSETIC_CACHE_TTL );
+		set_transient( PULSETIC_CACHE_KEY, $monitors, pulsetic_get_cache_ttl() );
 		self::$runtime_cache = $monitors;
 
 		return $monitors;
