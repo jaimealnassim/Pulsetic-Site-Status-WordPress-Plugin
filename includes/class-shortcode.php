@@ -108,7 +108,7 @@ class Pulsetic_Shortcode {
 
 		return $ajax_config
 			. '<div id="' . esc_attr( $uid ) . '" class="pulsetic-widget" data-group="' . esc_attr( $atts['group'] ) . '">'
-			. '<ul>' . $rows . '</ul>'
+			. '<ul role="list">' . $rows . '</ul>'
 			. $refresh_html
 			. '</div>';
 	}

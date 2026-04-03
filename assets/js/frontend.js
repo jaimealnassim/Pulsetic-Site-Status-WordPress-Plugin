@@ -14,95 +14,88 @@
 		( window.pulseticInstances || [] ).forEach( initInstance );
 	}
 
-	/**
-	 * Initialise one shortcode instance and start its polling loop.
-	 *
-	 * @param {Object}  cfg
-	 * @param {string}  cfg.uid            Widget element ID (e.g. "ps_abc123")
-	 * @param {string}  cfg.group          Group slug
-	 * @param {number}  cfg.interval       Poll interval in ms
-	 * @param {string}  cfg.style          'list' | 'cards' | 'bar'
-	 * @param {string}  cfg.label_online
-	 * @param {string}  cfg.label_offline
-	 * @param {string}  cfg.label_paused
-	 * @param {boolean} cfg.show_name
-	 * @param {boolean} cfg.show_url
-	 * @param {Object}  cfg.custom_labels
-	 * @param {Object}  cfg.custom_links
-	 */
 	function initInstance( cfg ) {
 		const widget = document.getElementById( cfg.uid );
 		if ( ! widget || ! ( cfg.interval > 0 ) ) return;
 
-		// In-flight guard: skip a poll if the previous one hasn't returned yet
 		let pending = false;
 
-		// Stagger multiple instances (up to 5 s) to spread server load
-		const jitter   = Math.random() * 5000;
-		let   timerId  = null;
+		// Stagger multiple instances to spread server load
+		const jitter  = Math.random() * 5000;
+		let   timerId = null;
 
 		function scheduledPoll() {
-			if ( ! pending ) {
-				pending = true;
-				poll( cfg, widget ).finally( function () { pending = false; } );
-			}
+			if ( pending ) return;
+			pending = true;
+			poll( cfg, widget ).finally( function () { pending = false; } );
 		}
 
 		timerId = setInterval( scheduledPoll, cfg.interval );
-
-		// Initial poll fires after (interval + jitter) so we don't hammer on load
 		setTimeout( scheduledPoll, cfg.interval + jitter );
 
-		// Clean up intervals when the page is hidden (tab switch, bfcache unload)
-		// This prevents stale intervals accumulating in SPA / full-page-cache scenarios
-		document.addEventListener( 'visibilitychange', function handleVisibility() {
+		// Pause when tab is hidden, resume when visible
+		document.addEventListener( 'visibilitychange', function () {
 			if ( document.visibilityState === 'hidden' ) {
 				clearInterval( timerId );
 			} else {
-				// Resume when tab becomes visible again
 				timerId = setInterval( scheduledPoll, cfg.interval );
-				scheduledPoll(); // immediate refresh so user sees current status
+				scheduledPoll();
 			}
 		} );
 	}
 
-	// ── Poll ─────────────────────────────────────────────────────────────────
+	// ── Poll — REST preferred, admin-ajax fallback ────────────────────────────
 
 	/**
+	 * Try the WP REST endpoint first (GET /wp-json/pulsetic/v1/status/{group}).
+	 * If that fails (network error, 404, host blocking /wp-json/), fall back
+	 * to the legacy admin-ajax POST endpoint.
+	 *
 	 * @returns {Promise<void>}
 	 */
 	function poll( cfg, widget ) {
-		const body = new URLSearchParams( {
-			action: 'pulsetic_poll_group',
-			nonce:  pulseticFrontend.nonce,
-			group:  cfg.group,
-		} );
+		const restUrl = ( pulseticFrontend.restUrl || '' ).replace( /\/$/, '' ) + '/' + encodeURIComponent( cfg.group );
 
-		return fetch( pulseticFrontend.ajaxUrl, {
-			method:  'POST',
-			headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-			body:    body.toString(),
-		} )
-		.then( function ( r ) {
-			if ( ! r.ok ) throw new Error( 'HTTP ' + r.status );
-			return r.json();
-		} )
-		.then( function ( data ) {
-			if ( data.success && Array.isArray( data.data.items ) ) {
-				applyDiff( cfg, widget, data.data.items );
-			}
-		} )
-		.catch( function () {
-			// Silent fail — stale DOM stays, no console noise for the end user
-		} );
+		return fetch( restUrl, { method: 'GET' } )
+			.then( function ( r ) {
+				// If the REST endpoint returned a non-success status, fall through to ajax fallback
+				if ( ! r.ok ) throw new Error( 'REST ' + r.status );
+				return r.json();
+			} )
+			.then( function ( data ) {
+				// REST returns the payload directly (not wrapped in {success, data})
+				if ( data && Array.isArray( data.items ) ) {
+					applyDiff( cfg, widget, data.items );
+				}
+			} )
+			.catch( function () {
+				// ── Fallback: admin-ajax ──────────────────────────────────────
+				const body = new URLSearchParams( {
+					action: 'pulsetic_poll_group',
+					nonce:  pulseticFrontend.nonce,
+					group:  cfg.group,
+				} );
+
+				return fetch( pulseticFrontend.ajaxUrl, {
+					method:  'POST',
+					headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+					body:    body.toString(),
+				} )
+				.then( function ( r ) {
+					if ( ! r.ok ) throw new Error( 'AJAX ' + r.status );
+					return r.json();
+				} )
+				.then( function ( data ) {
+					if ( data.success && Array.isArray( data.data.items ) ) {
+						applyDiff( cfg, widget, data.data.items );
+					}
+				} )
+				.catch( function () {} ); // final silent fail
+			} );
 	}
 
-	// ── Diff ─────────────────────────────────────────────────────────────────
+	// ── DOM diff ─────────────────────────────────────────────────────────────
 
-	/**
-	 * Update only the items whose status changed.
-	 * No full re-render — preserves focus, avoids layout thrash.
-	 */
 	function applyDiff( cfg, widget, items ) {
 		const style = cfg.style || 'list';
 
@@ -138,7 +131,7 @@
 		if ( getStatus( dot ) === newStatus ) return;
 
 		setStatus( card,  [ 'online', 'offline', 'paused' ], newStatus );
-		setStatus( dot,   [ 'pc-dot', 'online', 'offline', 'paused' ], newStatus );
+		setStatus( dot,   [ 'pc-dot',  'online', 'offline', 'paused' ], newStatus );
 		setStatus( badge, [ 'pc-badge', 'online', 'offline', 'paused' ], newStatus );
 		badge.textContent = label( cfg, newStatus );
 		pulse( dot, badge );
@@ -177,8 +170,7 @@
 	function pulse( ...els ) {
 		els.forEach( function ( el ) {
 			el.classList.remove( 'pulsetic-changed' );
-			// Force a reflow so the animation re-triggers even for repeated changes
-			void el.offsetWidth;
+			void el.offsetWidth; // force reflow so animation re-triggers
 			el.classList.add( 'pulsetic-changed' );
 			setTimeout( function () { el.classList.remove( 'pulsetic-changed' ); }, 700 );
 		} );

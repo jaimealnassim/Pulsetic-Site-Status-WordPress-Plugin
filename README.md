@@ -1,18 +1,19 @@
 # Pulsetic Site Status
 
-> A WordPress plugin that displays the live up/down status of your monitored sites via the [Pulsetic](https://pulsetic.com) API. Supports multiple monitor groups, three frontend display styles, live AJAX polling, and full ACSS / CSS custom property theming.
+> A WordPress plugin that displays the live up/down status of your monitored sites via the [Pulsetic](https://pulsetic.com) API. Supports multiple monitor groups, three frontend display styles, live polling via the WP REST API, and full ACSS / CSS custom property theming.
 
 ---
 
 ## Features
 
 - **Three shortcode styles** — list, card grid, and pill bar
-- **Live AJAX polling** — status updates without a page reload, configurable interval
-- **Smart caching** — 5-minute transient cache with in-process deduplication and background WP-Cron refresh
+- **Live polling via REST API** — `GET /wp-json/pulsetic/v1/status/{group}` with HTTP cache headers; falls back to `admin-ajax` automatically on hosts that block `/wp-json/`
+- **Configurable scan interval** — 1 min to 1 hour, validated server-side against a strict allowlist
+- **Smart caching** — transient cache with in-process deduplication and stale-while-revalidate background refresh via WP-Cron
 - **Full CSS token support** — all color and size settings accept `#hex`, `var(--acss-token)`, `rgba()`, `hsl()`, named colors, `em`, `px`, `clamp()`, etc.
 - **Per-monitor labels and links** — override the display name and wrap each item in a custom URL
-- **Multiple groups** — create as many groups as you need, each with its own shortcode slug
-- **Accessibility** — all widgets include `aria-label` attributes that update live with status changes
+- **Multiple groups** — create as many groups as you need; each group's shortcode preview shows all three styles with a tab switcher
+- **Accessibility** — `role="list"` on list widgets, `aria-label` on every item, updated live on status change
 - **Zero frontend dependencies** — vanilla JS, no jQuery, no external libraries on the front end
 
 ---
@@ -36,9 +37,9 @@
 
 ## Configuration
 
-### 1 · API Token &amp; Scan Interval
+### 1 · API Token & Scan Interval
 
-Go to **Settings → Pulsetic Status → ① API Token &amp; Scan Interval**.
+Go to **Settings → Pulsetic Status → ① API Token & Scan Interval**.
 
 Paste your token from [app.pulsetic.com/account/api](https://app.pulsetic.com/account/api) and choose how often the plugin should re-check the Pulsetic API:
 
@@ -49,15 +50,16 @@ Paste your token from [app.pulsetic.com/account/api](https://app.pulsetic.com/ac
 | 10 – 30 minutes | Low-traffic or informational status pages |
 | 1 hour | Sites checked rarely; minimises API quota usage |
 
-> **Note:** The interval controls the server-side cache TTL. The frontend AJAX polling (`refresh_interval` shortcode attribute) is separate — it re-reads the cached data, not the live API.
+> **Note:** The scan interval controls the server-side cache TTL. The frontend `refresh_interval` shortcode attribute is separate — it controls how often the browser re-reads the cached data, not how often the plugin contacts Pulsetic.
 
 ### 2 · Monitor Groups
 
-Each group maps to one shortcode. You can create as many groups as you need.
+Each group maps to one set of shortcodes. Create as many as you need.
 
 | Field | Description |
 |---|---|
 | **Group name** | Human-readable name — auto-generates the slug |
+| **Shortcode preview** | Tab between List / Cards / Bar to copy the right shortcode |
 | **Monitors** | Check the monitors to include in this group |
 | **Label** | Optional display name override per monitor |
 | **Link** | Optional URL — wraps the monitor name in an `<a>` tag |
@@ -98,12 +100,10 @@ Inline flex list. Items sit next to each other and wrap on narrow screens. Best 
 [pulsetic_status group="my-group"]
 ```
 
-**Attributes**
-
 | Attribute | Default | Description |
 |---|---|---|
 | `group` | `default` | Group slug |
-| `refresh_interval` | `60` | Seconds between AJAX polls. `0` disables polling. |
+| `refresh_interval` | `60` | Seconds between polls. `0` disables polling. |
 | `label_online` | `Online` | Badge text when monitor is up |
 | `label_offline` | `Offline` | Badge text when monitor is down |
 | `label_paused` | `Paused` | Badge text when monitor is paused |
@@ -121,12 +121,10 @@ Each monitor renders as a card with a coloured left-border accent and a status b
 [pulsetic_cards group="my-group"]
 ```
 
-**Attributes**
-
 | Attribute | Default | Description |
 |---|---|---|
 | `group` | `default` | Group slug |
-| `refresh_interval` | `60` | Seconds between AJAX polls. `0` disables polling. |
+| `refresh_interval` | `60` | Seconds between polls. `0` disables polling. |
 | `label_online` | `Online` | Badge text when monitor is up |
 | `label_offline` | `Offline` | Badge text when monitor is down |
 | `label_paused` | `Paused` | Badge text when monitor is paused |
@@ -143,12 +141,10 @@ Compact horizontal row of colour-coded pills. Best for headers, footers, or "all
 [pulsetic_bar group="my-group"]
 ```
 
-**Attributes**
-
 | Attribute | Default | Description |
 |---|---|---|
 | `group` | `default` | Group slug |
-| `refresh_interval` | `60` | Seconds between AJAX polls. `0` disables polling. |
+| `refresh_interval` | `60` | Seconds between polls. `0` disables polling. |
 | `label_online` | `Online` | Status text (used in `aria-label`) |
 | `label_offline` | `Offline` | Status text |
 | `label_paused` | `Paused` | Status text |
@@ -159,7 +155,7 @@ Compact horizontal row of colour-coded pills. Best for headers, footers, or "all
 
 ## Examples
 
-**Arabic labels (RTL-friendly):**
+**Arabic labels:**
 ```
 [pulsetic_status group="main" label_online="متصل" label_offline="معطل" label_paused="متوقف"]
 ```
@@ -183,16 +179,66 @@ Compact horizontal row of colour-coded pills. Best for headers, footers, or "all
 
 ## How Polling Works
 
-When `refresh_interval` is greater than `0`, the shortcode registers the widget for live AJAX polling via `frontend.js`. The browser calls `admin-ajax.php` on the configured interval to check for status changes.
+When `refresh_interval` is greater than `0`, each shortcode registers itself for live polling. The browser polls on the configured interval and updates only the DOM elements whose status has changed.
 
-Key behaviours:
+**Poll request flow:**
 
-- **Cache-backed** — the AJAX endpoint reads from the WP transient cache (5-minute TTL). It never forces a live Pulsetic API call, so visitors cannot hammer your API quota.
-- **Background refresh** — when the transient is within 60 seconds of expiring, a WP-Cron single event fires to refresh it in the background before the next visitor needs it.
-- **In-flight guard** — if a poll request hasn't returned before the next interval fires, the interval tick is skipped rather than stacking requests.
-- **Tab visibility** — polling pauses automatically when the browser tab is hidden and resumes (with an immediate poll) when it becomes visible again.
-- **Staggered start** — multiple widgets on the same page start their poll loops with a random jitter (up to 5 s) so they don't all hit the server simultaneously.
-- **DOM diffing** — only the specific elements whose status has changed are updated. No full re-renders.
+```
+Browser interval fires
+        │
+        ▼
+GET /wp-json/pulsetic/v1/status/{group}   ← REST API (preferred)
+        │
+        ├─ Success ──► applyDiff() — update only changed items
+        │
+        └─ Fail (host blocks /wp-json/, network error, etc.)
+                │
+                ▼
+        POST admin-ajax.php?action=pulsetic_poll_group   ← fallback
+                │
+                └─ applyDiff() — same diff engine, same payload shape
+```
+
+**Key behaviours:**
+
+- **REST preferred** — GET requests are cacheable; the endpoint sets `Cache-Control: public, max-age=N, stale-while-revalidate=N` so CDNs and browsers can cache them naturally
+- **admin-ajax fallback** — automatic, transparent, no configuration needed
+- **Cache-backed** — neither endpoint forces a live Pulsetic API call; they read from the WP transient cache so visitor polls can never exhaust your API quota
+- **Background refresh** — when the transient nears expiry (within 10% of TTL), a WP-Cron single event refreshes it in the background so no visitor ever blocks on a live fetch
+- **In-flight guard** — if a poll hasn't returned before the next interval fires, that tick is skipped rather than stacking requests
+- **Tab visibility** — polling pauses when the browser tab is hidden and resumes with an immediate poll when visible again
+- **Staggered start** — multiple widgets jitter their start time by up to 5 s to spread server load
+- **DOM diffing** — only changed elements are touched; focus, scroll position, and layout are preserved
+
+---
+
+## REST API
+
+The plugin exposes a public read-only endpoint:
+
+```
+GET /wp-json/pulsetic/v1/status/{group}
+```
+
+**Response:**
+```json
+{
+  "items": [
+    {
+      "id": "12345",
+      "status": "online",
+      "display_name": "Main Website",
+      "url": "https://example.com",
+      "custom_link": ""
+    }
+  ],
+  "cache_ttl": 243
+}
+```
+
+`status` is always one of `online`, `offline`, or `paused`. `cache_ttl` is the number of seconds until the server-side cache expires.
+
+The endpoint requires no authentication — the data shown is already public on your frontend. It validates the `{group}` parameter against your configured groups and returns `400` for unknown slugs.
 
 ---
 
@@ -200,20 +246,21 @@ Key behaviours:
 
 ```
 pulsetic-site-status/
-├── pulsetic-site-status.php        # Plugin bootstrap
-├── uninstall.php                   # Cleans all data on plugin deletion
+├── pulsetic-site-status.php        # Plugin bootstrap + header
+├── uninstall.php                   # Removes all data on plugin deletion
+├── README.md                       # This file
 ├── assets/
 │   ├── css/
 │   │   ├── admin.css               # Settings page styles
-│   │   └── frontend.css            # All three widget styles
+│   │   └── frontend.css            # All three widget styles + error states
 │   └── js/
-│       ├── admin.js                # Settings page interactions
-│       └── frontend.js             # AJAX polling engine
+│       ├── admin.js                # Settings page — groups, colors, tabs
+│       └── frontend.js             # REST-first polling engine with ajax fallback
 └── includes/
-    ├── functions.php               # Shared helpers, sanitizers, option cache
+    ├── functions.php               # Shared helpers, sanitizers, option cache, enqueue
     ├── class-api.php               # Pulsetic API + transient/runtime caching
     ├── class-admin.php             # Admin menu, enqueue, settings save
-    ├── class-ajax.php              # AJAX handlers (admin refresh + frontend poll)
+    ├── class-ajax.php              # REST route + admin-ajax handlers
     ├── class-shortcode.php         # [pulsetic_status] list style
     ├── class-shortcode-cards.php   # [pulsetic_cards] card grid style
     ├── class-shortcode-bar.php     # [pulsetic_bar] pill bar style
@@ -226,22 +273,22 @@ pulsetic-site-status/
 ## Caching Architecture
 
 ```
-Browser request
-      │
-      ▼
+Browser poll request
+        │
+        ▼
 Pulsetic_API::get_monitors()
-      │
-      ├─ Static $runtime_cache set?  ──yes──► return (0 DB hits)
-      │
-      ├─ WP transient exists?  ──yes──► store in runtime cache
-      │         │                       check stale window (< 60 s left)
-      │         │                       schedule WP-Cron refresh if stale
-      │         └────────────────────► return
-      │
-      └─ Live fetch from Pulsetic API
-                │
-                └─ Store in transient (5 min) + runtime cache
-                   return
+        │
+        ├─ $runtime_cache set? ──yes──► return  (0 DB hits, 0 API calls)
+        │
+        ├─ WP transient exists? ──yes──► populate runtime cache
+        │         │                      TTL < stale_window? → schedule Cron refresh
+        │         └─────────────────────► return
+        │
+        └─ Live fetch from Pulsetic API
+                  │
+                  └─ Store in transient (scan_interval seconds)
+                     Store in runtime cache
+                     return
 ```
 
 ---
@@ -250,9 +297,9 @@ Pulsetic_API::get_monitors()
 
 When you delete the plugin via **Plugins → Delete**, `uninstall.php` automatically removes:
 
-- All plugin options (`pulsetic_api_token`, `pulsetic_colors`, `pulsetic_groups`, `pulsetic_sizes`, `pulsetic_scan_interval`)
-- The monitor cache transient (`pulsetic_monitors_cache`)
-- Any scheduled WP-Cron background refresh events
+- All plugin options: `pulsetic_api_token`, `pulsetic_colors`, `pulsetic_groups`, `pulsetic_sizes`, `pulsetic_scan_interval`
+- The monitor cache transient: `pulsetic_monitors_cache`
+- All scheduled WP-Cron background refresh events
 
 Deactivating the plugin (without deleting) leaves all data intact so you can reactivate without reconfiguring.
 
@@ -263,54 +310,61 @@ Deactivating the plugin (without deleting) leaves all data intact so you can rea
 | Concern | Approach |
 |---|---|
 | Settings form | Nonce via `wp_nonce_field` + `check_admin_referer` |
-| AJAX endpoints | Nonce verified before capability check on both handlers |
-| Unauthorized AJAX | Returns HTTP `403` with JSON error body |
+| Admin AJAX | Nonce verified before capability check; unauthorized returns HTTP 403 |
+| REST endpoint | Public GET — data is already displayed publicly; group slug validated against allowlist |
 | `$_POST` values | `wp_unslash()` + per-field sanitizer (`sanitize_text_field`, `sanitize_key`, `esc_url_raw`) |
-| CSS value inputs | `pulsetic_sanitize_css_value()` — allows valid CSS tokens, blocks `javascript:`, `expression()`, `@import`, HTML/JS injection chars |
-| CSS output | Values re-sanitized via `pulsetic_build_css_vars()` before writing to `<style>` tag |
+| Scan interval | Validated against strict integer allowlist — no arbitrary TTL accepted |
+| CSS value inputs | `pulsetic_sanitize_css_value()` — allowlist regex, blocks `javascript:`, `expression()`, `@import` |
+| CSS output | Re-sanitized via `pulsetic_build_css_vars()` before writing to `<style>` (defence-in-depth) |
 | HTML output | `esc_html()`, `esc_attr()`, `esc_url()` on all user-facing output |
-| Inline JS config | `wp_json_encode()` with `JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT` |
-| Admin redirect | `wp_safe_redirect()` to prevent open redirect |
-| Render access | `current_user_can('manage_options')` checked on both save and render |
+| Inline JS config | `wp_json_encode()` with all four `JSON_HEX_*` flags — prevents `</script>` injection |
+| Admin redirect | `wp_safe_redirect()` — prevents open redirect |
+| Page render | `current_user_can('manage_options')` checked on both save and render |
 
 ---
 
 ## Changelog
 
-### 1.1.2 — Configurable scan interval
-- New **Scan Interval** setting in the Token card — choose from 1 min, 2 min, 5 min, 10 min, 15 min, 30 min, or 1 hour
-- Interval validated against a strict allowlist server-side (no arbitrary TTL injection)
-- Changing the interval immediately busts the existing cache so the new TTL applies on the next fetch
-- Stale-while-revalidate window scales with TTL (10%, clamped 30 s – 120 s) instead of being hardcoded at 60 s
-- "Next refresh in X" live countdown shown next to the selector
-- `pulsetic_scan_interval` option cleaned up by `uninstall.php`
+### 1.1.3
+- **REST API endpoint** — `GET /wp-json/pulsetic/v1/status/{group}` with `Cache-Control` headers; group slug validated, returns 400 for unknown groups
+- **REST-first polling** — `frontend.js` tries the REST endpoint first, falls back to `admin-ajax` transparently if the host blocks `/wp-json/`
+- **Shared payload builder** — both REST and admin-ajax use the same `build_poll_payload()` method; response shape guaranteed identical
+- **Group shortcode preview tabs** — each group now shows a List / Cards / Bar tab switcher so you can copy the right shortcode; tabs are colour-coded and update live as you type the group name
+- **`role="list"`** on `[pulsetic_status]` `<ul>` — restores list semantics in Safari + VoiceOver (removed by `list-style: none`)
+- **Error/empty state CSS** — `.pulsetic-error` and `.pulsetic-empty` classes now have explicit styles instead of falling through to theme defaults
+- **Complete plugin header** — added `Requires at least: 6.0`, `Requires PHP: 8.0`, `License`, `License URI`, `Text Domain`, `Author URI`, `Plugin URI`
 
-### 1.1.1 — Code quality & security audit
+### 1.1.2
+- Configurable **Scan Interval** setting (1 min – 1 hour), validated against strict allowlist
+- Changing interval immediately busts the existing cache
+- Stale-while-revalidate window now scales proportionally with TTL (10%, clamped 30 s – 120 s)
+- "Next refresh in X" countdown shown next to the selector
+
+### 1.1.1
 - `wp_safe_redirect()` replaces `wp_redirect()`
 - Unauthorized AJAX returns HTTP 403
 - `wp_unslash()` added to all `$_POST` reads
 - CSS custom property values re-sanitized at output via `pulsetic_build_css_vars()`
-- `wp_json_encode()` now uses full JSON_HEX flags to prevent `</script>` injection
-- In-request option cache (`pulsetic_get_option()`) removes repeated `get_option()` DB calls
-- Duplicate `maybe_enqueue()` code in card/bar classes replaced with shared `pulsetic_enqueue_frontend_assets()`
-- `enqueue_assets()` skips monitor fetch when no API token is configured
-- Null return from `pulsetic_find_group()` handled explicitly in all shortcodes
-- Widget DOM IDs now include style prefix to prevent collisions on same-page multi-style usage
+- `wp_json_encode()` uses full `JSON_HEX_*` flags
+- In-request option cache (`pulsetic_get_option()`) eliminates repeated DB calls
+- Shared `pulsetic_enqueue_frontend_assets()` replaces duplicate `maybe_enqueue()` in card/bar classes
+- `enqueue_assets()` skips monitor fetch when no token configured
+- Null return from `pulsetic_find_group()` handled explicitly
+- Widget DOM IDs include style prefix to prevent same-page collisions
 - Inline `style=` removed from cards shortcode — moved to CSS
-- `setInterval` cleared on `visibilitychange` (tab hidden) to prevent timer accumulation
-- `uninstall.php` added — deletes all options, transients, and cron events on plugin deletion
+- `setInterval` cleared on `visibilitychange`
+- `uninstall.php` added
 
-### 1.1.0 — Feature update
+### 1.1.0
 - Three shortcode styles: `[pulsetic_status]`, `[pulsetic_cards]`, `[pulsetic_bar]`
-- Color inputs now accept any CSS value (`var()`, `rgba()`, ACSS tokens, etc.)
-- New size settings for dot size, item font size, badge font size
-- Admin CSS/JS extracted from inline to enqueued asset files
-- Live AJAX polling with DOM diffing and pulse animation
-- Stale-while-revalidate background cache refresh via WP-Cron
+- Color and size inputs accept any CSS value (`var()`, `rgba()`, ACSS tokens, etc.)
+- Admin CSS/JS extracted to enqueued asset files
+- Live polling with DOM diffing and pulse animation on change
+- Stale-while-revalidate background refresh via WP-Cron
 
-### 1.0.0 — Initial release
-- Single-file plugin
-- Pulsetic API integration with 5-minute transient cache
+### 1.0.0
+- Initial release — single-file plugin
+- Pulsetic API integration with transient cache
 - Admin settings: token, monitor groups, custom labels, color picker
 - `[pulsetic_status]` shortcode
 

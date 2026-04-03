@@ -11,6 +11,20 @@
     font-family: inherit;
 }
 
+/* Error / empty states — shown when API fails or group has no monitors */
+.pulsetic-error {
+    font-size: .9em;
+    color: #ef4444;
+    margin: 0;
+    padding: 0;
+}
+.pulsetic-empty {
+    font-size: .9em;
+    color: #94a3b8;
+    margin: 0;
+    padding: 0;
+}
+
 /* ─── LIST style  [pulsetic_status] ──────────────────────────────────────── */
 
 .pulsetic-widget ul {

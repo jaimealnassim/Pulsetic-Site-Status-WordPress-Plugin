@@ -25,9 +25,32 @@
 		const $item = $( this ).closest( '.group-item' );
 		$item.find( '.group-id-field' ).val( slug );
 		$item.find( '.group-slug-pill' ).text( slug );
-		$item.find( '.group-sc' ).html(
+		$item.find( '.group-sc' ).attr( 'data-slug', slug );
+
+		// Update all three shortcode span variants
+		$item.find( '.gsc-list' ).html(
 			'[pulsetic_status <span class="at">group</span>=<span class="vl">"' + esc( slug ) + '"</span>]'
 		);
+		$item.find( '.gsc-cards' ).html(
+			'[pulsetic_cards <span class="at">group</span>=<span class="vl">"' + esc( slug ) + '"</span>]'
+		);
+		$item.find( '.gsc-bar' ).html(
+			'[pulsetic_bar <span class="at">group</span>=<span class="vl">"' + esc( slug ) + '"</span>]'
+		);
+	} );
+
+	// ── Shortcode tab switcher ─────────────────────────────────────────────────
+
+	$( document ).on( 'click', '.gst-tab', function () {
+		const $tab   = $( this );
+		const style  = $tab.data( 'style' );
+		const $group = $tab.closest( '.group-item' );
+
+		$group.find( '.gst-tab' ).removeClass( 'active' );
+		$tab.addClass( 'active' );
+
+		$group.find( '.gsc-list, .gsc-cards, .gsc-bar' ).hide();
+		$group.find( '.gsc-' + style ).show();
 	} );
 
 	// ── Checkbox highlight ──────────────────────────────────────────────────────
@@ -80,7 +103,16 @@
     <button type="button" class="group-del">✕ Remove</button>
   </div>
   <div class="group-body">
-    <div class="group-sc">[pulsetic_status <span class="at">group</span>=<span class="vl">"${ slug }"</span>]</div>
+    <div class="group-sc-tabs">
+      <button type="button" class="gst-tab active" data-style="list">List</button>
+      <button type="button" class="gst-tab" data-style="cards">Cards</button>
+      <button type="button" class="gst-tab" data-style="bar">Bar</button>
+    </div>
+    <div class="group-sc" data-slug="${ slug }">
+      <span class="gsc-list">[pulsetic_status <span class="at">group</span>=<span class="vl">"${ slug }"</span>]</span>
+      <span class="gsc-cards" style="display:none">[pulsetic_cards <span class="at">group</span>=<span class="vl">"${ slug }"</span>]</span>
+      <span class="gsc-bar" style="display:none">[pulsetic_bar <span class="at">group</span>=<span class="vl">"${ slug }"</span>]</span>
+    </div>
     <div class="sctr">
       <button type="button" class="sa" data-a="all">Select all</button>
       <button type="button" class="sa" data-a="none">Deselect all</button>

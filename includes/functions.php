@@ -268,6 +268,7 @@ function pulsetic_enqueue_frontend_assets( bool $already_done ): void {
 		);
 		wp_localize_script( 'pulsetic-frontend', 'pulseticFrontend', [
 			'ajaxUrl' => admin_url( 'admin-ajax.php' ),
+			'restUrl' => rest_url( 'pulsetic/v1/status' ),
 			'nonce'   => wp_create_nonce( 'pulsetic_frontend_nonce' ),
 		] );
 	}

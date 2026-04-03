@@ -1,14 +1,21 @@
 <?php
 /**
- * Plugin Name: Pulsetic Site Status
- * Description: Display live/down status of monitored sites via Pulsetic API. Supports multiple groups per page.
- * Version: 1.1.2
- * Author: Exercise Library
+ * Plugin Name:       Pulsetic Site Status
+ * Plugin URI:        https://github.com/nahnumedia/pulsetic-site-status
+ * Description:       Display live/down status of monitored sites via Pulsetic API. Supports multiple groups, three display styles, and live AJAX polling.
+ * Version:           1.1.3
+ * Author:            Nahnu Media
+ * Author URI:        https://nahnumedia.com
+ * License:           GPL-2.0-or-later
+ * License URI:       https://www.gnu.org/licenses/gpl-2.0.html
+ * Text Domain:       pulsetic-site-status
+ * Requires at least: 6.0
+ * Requires PHP:      8.0
  */
 
 if ( ! defined( 'ABSPATH' ) ) exit;
 
-define( 'PULSETIC_VERSION',    '1.1.2' );
+define( 'PULSETIC_VERSION',    '1.1.3' );
 define( 'PULSETIC_PATH',       plugin_dir_path( __FILE__ ) );
 define( 'PULSETIC_URL',        plugin_dir_url( __FILE__ ) );
 define( 'PULSETIC_CACHE_KEY',  'pulsetic_monitors_cache' );
@@ -20,7 +27,6 @@ define( 'PULSETIC_OPT_COLOR',  'pulsetic_colors' );
 define( 'PULSETIC_OPT_GROUPS', 'pulsetic_groups' );
 
 // uninstall.php handles data cleanup when the plugin is deleted.
-// register_uninstall_hook signals WP to look for that file.
 register_uninstall_hook( __FILE__, '__return_false' );
 
 require_once PULSETIC_PATH . 'includes/functions.php';

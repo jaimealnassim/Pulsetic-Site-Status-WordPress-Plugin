@@ -9,7 +9,7 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 ?>
 <div id="pw">
     <h1><span class="hd"></span> Pulsetic Status</h1>
-    <p class="pw-sub">Create groups of monitors, set a custom label per site, then use <code>[pulsetic_status group="slug"]</code> anywhere.</p>
+    <p class="pw-sub">Create groups of monitors, set a custom label per site, then use <code>[pulsetic_status]</code>, <code>[pulsetic_cards]</code>, or <code>[pulsetic_bar]</code> with your group slug.</p>
 
     <?php if ( $updated ) : ?>
     <div class="pnote">✓ Settings saved.</div>
@@ -98,7 +98,16 @@ if ( ! defined( 'ABSPATH' ) ) exit;
                         <button type="button" class="group-del">✕ Remove</button>
                     </div>
                     <div class="group-body">
-                        <div class="group-sc">[pulsetic_status <span class="at">group</span>=<span class="vl">"<?php echo esc_attr( $g['id'] ); ?>"</span>]</div>
+                        <div class="group-sc-tabs">
+                            <button type="button" class="gst-tab active" data-style="list">List</button>
+                            <button type="button" class="gst-tab" data-style="cards">Cards</button>
+                            <button type="button" class="gst-tab" data-style="bar">Bar</button>
+                        </div>
+                        <div class="group-sc" data-slug="<?php echo esc_attr( $g['id'] ); ?>">
+                            <span class="gsc-list">[pulsetic_status <span class="at">group</span>=<span class="vl">"<?php echo esc_attr( $g['id'] ); ?>"</span>]</span>
+                            <span class="gsc-cards" style="display:none">[pulsetic_cards <span class="at">group</span>=<span class="vl">"<?php echo esc_attr( $g['id'] ); ?>"</span>]</span>
+                            <span class="gsc-bar" style="display:none">[pulsetic_bar <span class="at">group</span>=<span class="vl">"<?php echo esc_attr( $g['id'] ); ?>"</span>]</span>
+                        </div>
                         <div class="sctr">
                             <button type="button" class="sa" data-a="all">Select all</button>
                             <button type="button" class="sa" data-a="none">Deselect all</button>
