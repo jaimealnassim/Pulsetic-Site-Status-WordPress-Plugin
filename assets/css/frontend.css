@@ -1,0 +1,205 @@
+/* ── Pulsetic Frontend Widget ──────────────────────────────────────────────────
+   Colors + sizes are injected as CSS custom properties on :root by PHP.
+   Supports hex, var(--acss-token), rgba(), etc. out of the box.
+   ─────────────────────────────────────────────────────────────────────────── */
+
+/* ─── Shared ──────────────────────────────────────────────────────────────── */
+
+.pulsetic-widget,
+.pulsetic-cards,
+.pulsetic-bar {
+    font-family: inherit;
+}
+
+/* ─── LIST style  [pulsetic_status] ──────────────────────────────────────── */
+
+.pulsetic-widget ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-wrap: wrap;
+    column-gap: 24px;
+    row-gap: 0;
+}
+
+.pulsetic-widget .psi {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 0;
+    font-size: var(--pulsetic-item-font-size, .94em);
+    white-space: nowrap;
+}
+
+/* Status dot */
+.pulsetic-widget .psd {
+    width: var(--pulsetic-dot-size, 10px);
+    height: var(--pulsetic-dot-size, 10px);
+    border-radius: 50%;
+    flex-shrink: 0;
+    transition: background .4s ease;
+}
+.pulsetic-widget .psd.online  { background: var(--pulsetic-online-dot); }
+.pulsetic-widget .psd.offline { background: var(--pulsetic-offline-dot); }
+.pulsetic-widget .psd.paused  { background: var(--pulsetic-paused-dot); }
+
+/* Site name */
+.pulsetic-widget .psn { font-weight: 600; }
+.pulsetic-widget a.psn { color: inherit; text-decoration: none; }
+.pulsetic-widget a.psn:hover { text-decoration: underline; }
+
+/* URL */
+.pulsetic-widget .psu { color: #9ca3af; font-size: .82em; word-break: break-all; }
+
+/* Badge */
+.pulsetic-widget .psb {
+    font-size: var(--pulsetic-badge-font-size, .73em);
+    font-weight: 700;
+    letter-spacing: .05em;
+    padding: 2px 8px;
+    border-radius: 20px;
+    text-transform: uppercase;
+    white-space: nowrap;
+    transition: background .4s ease, color .4s ease;
+}
+.pulsetic-widget .psb.online  { background: var(--pulsetic-online-badge-bg);  color: var(--pulsetic-online-badge-text);  }
+.pulsetic-widget .psb.offline { background: var(--pulsetic-offline-badge-bg); color: var(--pulsetic-offline-badge-text); }
+.pulsetic-widget .psb.paused  { background: var(--pulsetic-paused-badge-bg);  color: var(--pulsetic-paused-badge-text);  }
+
+/* Cache refresh timer */
+.pulsetic-widget .pst { font-size: .73em; color: #9ca3af; margin-top: 6px; }
+
+
+/* ─── CARDS style  [pulsetic_cards] ──────────────────────────────────────── */
+
+.pulsetic-cards {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.pulsetic-cards .pc-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 16px;
+    border-radius: 10px;
+    border: 1.5px solid #e2e8f0;
+    background: #fff;
+    font-size: var(--pulsetic-item-font-size, .94em);
+    min-width: 180px;
+    flex: 1 1 180px;
+    transition: border-color .2s, box-shadow .2s;
+}
+.pulsetic-cards .pc-item:hover {
+    border-color: #cbd5e1;
+    box-shadow: 0 2px 8px rgba(0,0,0,.06);
+}
+.pulsetic-cards .pc-item.online  { border-left: 3px solid var(--pulsetic-online-dot); }
+.pulsetic-cards .pc-item.offline { border-left: 3px solid var(--pulsetic-offline-dot); }
+.pulsetic-cards .pc-item.paused  { border-left: 3px solid var(--pulsetic-paused-dot); }
+
+.pulsetic-cards .pc-dot {
+    width: var(--pulsetic-dot-size, 10px);
+    height: var(--pulsetic-dot-size, 10px);
+    border-radius: 50%;
+    flex-shrink: 0;
+    transition: background .4s ease;
+}
+.pulsetic-cards .pc-dot.online  { background: var(--pulsetic-online-dot); box-shadow: 0 0 0 3px color-mix(in srgb, var(--pulsetic-online-dot) 20%, transparent); }
+.pulsetic-cards .pc-dot.offline { background: var(--pulsetic-offline-dot); }
+.pulsetic-cards .pc-dot.paused  { background: var(--pulsetic-paused-dot); }
+
+.pulsetic-cards .pc-name {
+    font-weight: 600;
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.pulsetic-cards a.pc-name { color: inherit; text-decoration: none; }
+.pulsetic-cards a.pc-name:hover { text-decoration: underline; }
+
+/* URL line below card name */
+.pulsetic-cards .pc-url {
+    font-size: .8em;
+    color: #9ca3af;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    display: block;
+}
+
+.pulsetic-cards .pc-badge {
+    font-size: var(--pulsetic-badge-font-size, .73em);
+    font-weight: 700;
+    letter-spacing: .05em;
+    padding: 2px 8px;
+    border-radius: 20px;
+    text-transform: uppercase;
+    white-space: nowrap;
+    margin-left: auto;
+    transition: background .4s ease, color .4s ease;
+}
+.pulsetic-cards .pc-badge.online  { background: var(--pulsetic-online-badge-bg);  color: var(--pulsetic-online-badge-text);  }
+.pulsetic-cards .pc-badge.offline { background: var(--pulsetic-offline-badge-bg); color: var(--pulsetic-offline-badge-text); }
+.pulsetic-cards .pc-badge.paused  { background: var(--pulsetic-paused-badge-bg);  color: var(--pulsetic-paused-badge-text);  }
+
+
+/* ─── BAR style  [pulsetic_bar] ──────────────────────────────────────────── */
+
+.pulsetic-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+}
+
+.pulsetic-bar .pb-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 12px 5px 8px;
+    border-radius: 999px;
+    font-size: var(--pulsetic-item-font-size, .88em);
+    font-weight: 600;
+    white-space: nowrap;
+    transition: opacity .2s;
+}
+.pulsetic-bar .pb-pill.online  { background: var(--pulsetic-online-badge-bg);  color: var(--pulsetic-online-badge-text);  }
+.pulsetic-bar .pb-pill.offline { background: var(--pulsetic-offline-badge-bg); color: var(--pulsetic-offline-badge-text); }
+.pulsetic-bar .pb-pill.paused  { background: var(--pulsetic-paused-badge-bg);  color: var(--pulsetic-paused-badge-text);  }
+.pulsetic-bar a.pb-pill { text-decoration: none; }
+.pulsetic-bar a.pb-pill:hover { opacity: .8; }
+
+.pulsetic-bar .pb-dot {
+    width: var(--pulsetic-dot-size, 8px);
+    height: var(--pulsetic-dot-size, 8px);
+    border-radius: 50%;
+    flex-shrink: 0;
+    transition: background .4s ease;
+}
+.pulsetic-bar .pb-dot.online  { background: var(--pulsetic-online-dot); }
+.pulsetic-bar .pb-dot.offline { background: var(--pulsetic-offline-dot); }
+.pulsetic-bar .pb-dot.paused  { background: var(--pulsetic-paused-dot); }
+
+.pulsetic-bar .pb-name { font-weight: 600; }
+
+.pulsetic-bar .pb-status-text {
+    opacity: .7;
+    font-weight: 400;
+}
+
+
+/* ─── Pulse animation (shared) ──────────────────────────────────────────── */
+
+@keyframes pulsetic-pulse {
+    0%   { opacity: 1; }
+    50%  { opacity: .35; }
+    100% { opacity: 1; }
+}
+
+.pulsetic-changed {
+    animation: pulsetic-pulse .65s ease;
+}
